@@ -10,11 +10,14 @@
     "seed": "tsx src/scripts/seed.ts",
     "test": "cross-env DB_PATH=:memory: node --import tsx --test test/**/*.test.ts",
     "build": "tsc",
-    "check:deps": "tsx src/scripts/check-deps.ts"
+    "check:deps": "tsx src/scripts/check-deps.ts",
+    "token": "tsx src/scripts/issue-token.ts",
+    "setup:env": "tsx src/scripts/setup-env.ts"
   },
   "dependencies": {
     "better-sqlite3": "^11.3.0",
-    "express": "^4.21.0"
+    "express": "^4.21.0",
+    "jose": "^6.2.12"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.11",

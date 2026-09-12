@@ -23,14 +23,12 @@
     <h1>Merchant Dashboard</h1>
     <p class="muted">Tiny demo dashboard backed by the local API.</p>
 
-    <div class="merchant-picker">
+    <div class="merchant-picker" id="merchant-picker" hidden>
       <label>Logged in as:
-        <select id="merchant-select">
-          <option value="m_acme">Acme Supplies</option>
-          <option value="m_bistro">Bistro Verde</option>
-        </select>
+        <select id="merchant-select"></select>
       </label>
     </div>
+    <p class="muted" id="session-label">Loading session…</p>
 
     <section>
       <h2>Summary</h2>

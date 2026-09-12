@@ -1,12 +1,36 @@
-const select = document.getElementById('merchant-select');
+const merchantPicker = document.getElementById('merchant-picker');
+const merchantSelect = document.getElementById('merchant-select');
+const sessionLabel = document.getElementById('session-label');
 const totalOrdersEl = document.getElementById('total-orders');
 const uniqueCustomersEl = document.getElementById('unique-customers');
 const avgOrderEl = document.getElementById('avg-order');
 const revenue30dEl = document.getElementById('revenue-30d');
 const ordersTbody = document.getElementById('orders-tbody');
 
-function api(path) {
-  return fetch(path, { headers: { 'X-Merchant-Id': select.value } }).then((r) => r.json());
+// The session lives in HttpOnly cookies, so this page never holds a token.
+// Merchant tokens are short-lived: on a 401 we ask for a new one and retry once.
+let selectedMerchantId = null;
+
+function request(path, options = {}) {
+  return fetch(path, { credentials: 'same-origin', ...options });
+}
+
+async function mintMerchantToken(merchantId) {
+  const response = await request('/api/auth/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ merchantId }),
+  });
+  return response.ok;
+}
+
+async function api(path) {
+  let response = await request(path);
+  if (response.status === 401 && selectedMerchantId && (await mintMerchantToken(selectedMerchantId))) {
+    response = await request(path);
+  }
+  if (!response.ok) throw new Error(`${path} responded ${response.status}`);
+  return response.json();
 }
 
 function money(cents) {
@@ -15,6 +39,10 @@ function money(cents) {
 
 function isoDate(d) {
   return d.toISOString().slice(0, 10);
+}
+
+function setStatus(text) {
+  sessionLabel.textContent = text;
 }
 
 async function refresh() {
@@ -42,5 +70,48 @@ async function refresh() {
   }
 }
 
-select.addEventListener('change', refresh);
-refresh();
+async function selectMerchant(merchantId) {
+  selectedMerchantId = merchantId;
+  if (!(await mintMerchantToken(merchantId))) {
+    setStatus(`Could not open a session for ${merchantId}.`);
+    return;
+  }
+  setStatus(`Viewing ${merchantId}`);
+  await refresh();
+}
+
+async function start() {
+  const sessionResponse = await request('/api/auth/session');
+  if (!sessionResponse.ok) {
+    merchantPicker.hidden = true;
+    setStatus('No session. Run "npm run token" and POST it to /api/auth/admin-session.');
+    return;
+  }
+  const session = await sessionResponse.json();
+
+  if (session.role === 'merchant') {
+    // A merchant session is bound to one merchant: no picker to show.
+    merchantPicker.hidden = true;
+    selectedMerchantId = session.merchantId;
+    setStatus(`Viewing ${session.merchantId}`);
+    await refresh();
+    return;
+  }
+
+  const { merchants } = await api('/api/merchants');
+  merchantSelect.innerHTML = '';
+  for (const merchant of merchants) {
+    const option = document.createElement('option');
+    option.value = merchant.id;
+    option.textContent = merchant.name;
+    merchantSelect.appendChild(option);
+  }
+  merchantPicker.hidden = merchants.length === 0;
+  if (merchants.length > 0) await selectMerchant(merchantSelect.value);
+}
+
+merchantSelect.addEventListener('change', () => {
+  selectMerchant(merchantSelect.value).catch((error) => setStatus(String(error)));
+});
+
+start().catch((error) => setStatus(String(error)));

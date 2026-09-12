@@ -1,12 +1,16 @@
+/**
+ * Revenue endpoint.
+ */
 import { Router } from 'express';
-import { ordersDal } from '../dal/orders-dal.js';
+import { getAuthContext } from '../auth/context.js';
+import { ordersRepository } from '../dal/orders-repository.js';
 
 export const revenueRouter = Router();
 
 /**
- * GET /api/revenue?from=YYYY-MM-DD&to=YYYY-MM-DD
+ * `GET /api/revenue?from=YYYY-MM-DD&to=YYYY-MM-DD`
  *
- * Returns total revenue for the authenticated merchant in the given date range.
+ * Total revenue for the session's merchant in the given date range.
  */
 revenueRouter.get('/', (req, res) => {
   const from = typeof req.query.from === 'string' ? req.query.from : undefined;
@@ -16,9 +20,9 @@ revenueRouter.get('/', (req, res) => {
     return;
   }
 
-  const total = ordersDal.sumAmountByMerchant(req.merchantId!, from, to);
+  const total = ordersRepository.sumAmount(from, to);
   res.json({
-    merchant_id: req.merchantId,
+    merchant_id: getAuthContext().merchantId,
     from,
     to,
     revenue_cents: total,
