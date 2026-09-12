@@ -158,3 +158,43 @@ test('session: reports who the caller is', async () => {
   assert.equal(body.role, 'merchant');
   assert.equal(body.merchantId, 'm_acme');
 });
+
+test('session: an admin-only caller can switch merchants', async () => {
+  const body = (await (await call('/api/auth/session', { cookie: adminCookie })).json()) as {
+    role: string;
+    merchantId: string | null;
+    canSwitchMerchants: boolean;
+  };
+  assert.equal(body.role, 'admin');
+  assert.equal(body.merchantId, null);
+  assert.equal(body.canSwitchMerchants, true);
+});
+
+test('session: holding both cookies still allows switching merchants', async () => {
+  // The dashboard's normal state after picking a merchant. Reporting only the merchant
+  // session here is what made the picker vanish on reload.
+  const body = (await (await call('/api/auth/session', { cookie: `${adminCookie}; ${acmeCookie}` })).json()) as {
+    role: string;
+    merchantId: string;
+    canSwitchMerchants: boolean;
+  };
+  assert.equal(body.role, 'merchant');
+  assert.equal(body.merchantId, 'm_acme');
+  assert.equal(body.canSwitchMerchants, true);
+});
+
+test('session: a merchant-only caller cannot switch merchants', async () => {
+  const body = (await (await call('/api/auth/session', { cookie: acmeCookie })).json()) as {
+    canSwitchMerchants: boolean;
+  };
+  assert.equal(body.canSwitchMerchants, false);
+});
+
+test('session: an expired admin cookie does not advertise switching', async () => {
+  const expiredAdmin = await signToken({ role: 'admin', scope: 'mint' }, '-1s');
+  const body = (await (
+    await call('/api/auth/session', { cookie: `${ADMIN_COOKIE}=${expiredAdmin}; ${acmeCookie}` })
+  ).json()) as { role: string; canSwitchMerchants: boolean };
+  assert.equal(body.role, 'merchant');
+  assert.equal(body.canSwitchMerchants, false);
+});

@@ -18,7 +18,13 @@ import {
   serializeSessionCookie,
 } from '../auth/cookies.js';
 import { requireAuth } from '../auth/guard.js';
-import { InvalidTokenError, issueMerchantToken, verifyToken } from '../auth/jwt.js';
+import {
+  InvalidTokenError,
+  issueMerchantToken,
+  verifyToken,
+  type TokenScope,
+  type VerifiedToken,
+} from '../auth/jwt.js';
 import { isLocalRequest } from '../auth/local.js';
 import { merchantsRepository } from '../dal/merchants-repository.js';
 import { asyncHandler } from './async-handler.js';
@@ -103,25 +109,46 @@ authRouter.get(
   '/session',
   asyncHandler(async (req, res) => {
     const cookies = parseCookies(req.headers.cookie);
-    for (const name of [MERCHANT_COOKIE, ADMIN_COOKIE]) {
-      const token = cookies[name];
-      if (!token) continue;
-      try {
-        const verified = await verifyToken(token);
-        res.json({
-          role: verified.role,
-          scope: verified.scope,
-          merchantId: verified.merchantId ?? null,
-          expiresAt: verified.expiresAt.toISOString(),
-        });
-        return;
-      } catch (error) {
-        if (!(error instanceof InvalidTokenError)) throw error;
-      }
+    // A browser can hold both cookies at once. Reporting only one of them is what made the
+    // dashboard's merchant picker disappear on reload (plan 007).
+    const merchant = await readSession(cookies[MERCHANT_COOKIE], 'data');
+    const admin = await readSession(cookies[ADMIN_COOKIE], 'mint');
+
+    const effective = merchant ?? admin;
+    if (!effective) {
+      res.status(401).json({ error: 'unauthenticated' });
+      return;
     }
-    res.status(401).json({ error: 'unauthenticated' });
+
+    res.json({
+      role: effective.role,
+      scope: effective.scope,
+      merchantId: effective.merchantId ?? null,
+      expiresAt: effective.expiresAt.toISOString(),
+      // Capability, not identity: true when minting a merchant token would actually work.
+      canSwitchMerchants: admin !== undefined,
+    });
   }),
 );
+
+/**
+ * Verifies a session cookie.
+ *
+ * @param token - Raw cookie value, if present.
+ * @param scope - Scope the token must carry to count.
+ * @returns The verified claims, or `undefined` when the cookie is absent, invalid, expired or
+ *          carries a different scope.
+ */
+async function readSession(token: string | undefined, scope: TokenScope): Promise<VerifiedToken | undefined> {
+  if (!token) return undefined;
+  try {
+    const verified = await verifyToken(token);
+    return verified.scope === scope ? verified : undefined;
+  } catch (error) {
+    if (error instanceof InvalidTokenError) return undefined;
+    throw error;
+  }
+}
 
 /**
  * `DELETE /api/auth/session` — clears both session cookies.

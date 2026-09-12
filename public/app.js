@@ -93,8 +93,9 @@ async function start() {
   }
   const session = await sessionResponse.json();
 
-  if (session.role === 'merchant') {
-    // A merchant session is bound to one merchant: no picker to show.
+  // Decide by capability, not identity: after picking a merchant the session reads as
+  // "merchant" while the admin cookie is still there and can mint (plan 007).
+  if (!session.canSwitchMerchants) {
     merchantPicker.hidden = true;
     selectedMerchantId = session.merchantId;
     setStatus(`Viewing ${session.merchantId}`);
@@ -111,7 +112,17 @@ async function start() {
     merchantSelect.appendChild(option);
   }
   merchantPicker.hidden = merchants.length === 0;
-  if (merchants.length > 0) await selectMerchant(merchantSelect.value);
+  if (merchants.length === 0) return;
+
+  if (session.merchantId) {
+    // Reload with a live merchant session: reuse it instead of minting another token.
+    merchantSelect.value = session.merchantId;
+    selectedMerchantId = session.merchantId;
+    setStatus(`Viewing ${session.merchantId}`);
+    await refresh();
+    return;
+  }
+  await selectMerchant(merchantSelect.value);
 }
 
 merchantSelect.addEventListener('change', () => {
