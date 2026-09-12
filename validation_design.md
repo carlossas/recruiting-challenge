@@ -40,11 +40,14 @@ For each issue *class* you addressed (not each instance — group by class):
 - Instance I fixed: Upgrade and fix security issues using npm audit fix and overrides over the dependencies with issues. 
 - The gate I build: New script that ran over a github action pipeline than detect new high or critical vulnerabilities, this ran after create any PR request so nobody can create vulnerabilities to our develop or main branches, also I protected develop and main branchs to avoid any push forced by developers. 
 - Where to see the gate in the diff: Hash commit 4a0f7cf819401b005d7d7b272854cdd6bd2b232b
-- Yes I created, I thiks this is one of the most important things to set before start any new code because prevent lot of issues. 
+- Yes I created, I think this is one of the most important things to set before start any new code because prevent lot of issues. 
 
-### Class 2 — <name the class>
+### Class 2 — Auth and Multitenancy Layers
 
-…
+- Instance I fixed: Create basic auth layer and guards for all request, we don't want have open request, we want avoid basic attacks, also I implemented a basic repository class that force to all repositories to implement merchantId filter, this prevent new data cross issues.
+- The gate I build: Guards to ask for basic auth token and Base Repository that force to any repository class to include merchantId in the query. We would create something more robust implementing entity/data scope strategies like scope claims, auth0 users, cloud jwt sign in and auth ms/library layer dedicated. Also some linter or script that review all functions that try to access to our db are impelenting repository pattern extending from our base repository class. 
+- Where to see the gate in the diff: Hash commit 763b674e0c939c4b4707930c492272b1a4008a6e
+- Yes I created, I skip some robust solutions because time but I implement the minimum, an application that doesn't have any auth or validation of data scope layers are just spikes or mvps, we need a real prod app even if we just have 1 or 2 request but with the necessary layers to cover a first world class app. 
 
 ---
 
