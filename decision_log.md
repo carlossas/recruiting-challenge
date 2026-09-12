@@ -36,30 +36,37 @@ I created this decision_log markdown fully, I just use AI for validate spelling.
 
 ## Feature chosen
 
-- **Feature:**
-- **Why this one and not the others:**
-- **What I cut to ship it in budget:**
-- **Confidence (1–10) that the shape I picked is the right one:**
-- **What would change my mind:**
+- **Feature:** Export orders in csv
+- **Why this one and not the others:** In my experience this is one of the most asked features in a report dashboard, most of users always want a csv exported, in this case most of the logic was already prepared to export because we create multitenancy/auth layer and also we fix all discrepancies of data, so csv was a clean and valuable feature. I discard search orders because you can do it inside the csv just using search tool from excel or google sheets.
+- **What I cut to ship it in budget:** Default date range, we can not modify because cause discrepancy with data that user is actually seeing on dashboard (last 30 days). Default structure, user can not modify headers or how looks csv.
+- **Confidence (1–10) that the shape I picked is the right one:** 10
+- **What would change my mind:** If the client has some specific requirement to introduce webhooks, but I think this is not the case for most of them.
 
 ## Things I noticed but did NOT fix
+I kept a file "tech_debt.md" that contains all tier 1 tasks grouped by type of issue balancing effort and urgency, all of them are really important but I cut to just resolve 3 of the groups (3 groups doesn't means the same that bug, I really solve more than 1 bug fixing 1 group) because time was not enough to pay attention with judge at all.
 
-> Class-of-bug instances you saw and chose not to touch. For each, name the *reason* you cut it (scope / time / dependency / "needs a larger conversation").
+I discard another couple of bugs in "tech_debt_backlog.md" for example test coverage, date formats etc, not because time, because are not urgent to have a real product working fine, any way we should do this tech debt in dead times.
 
 -
 
 ## Docs / code I left alone deliberately
+- All current dependencies: We don't want modify just because exist any faster or new dependency, is better keep if it works fine for our app, we just introduce the necessaries. 
+- Seeders or any db structure: We keep it because in a real world we don't want redesign the full db just to fix some couple of bugs to deliver a product. 
+- General Architecture: We don't want refactor to use any complicated pattern o framework at the first, deliver something functional and secure is more important than use the new fancy framework.
 
--
 
 ## What I'd do with another 6 hours
-
+ -Finish all tier 1 bugs. 
+ -Audit performance issues and fix it (probably I could just do quick performance fixes like implement batchs or promise all).
+ -Add date filters on dashboard.
+ -Integrations and e2e testing.
+ -Start spike or mvp to our full auth layer.
 -
 
 ## Where I felt uncertain
 
-> At least three places in this submission where you were not confident. Genuine uncertainty is a strength signal. "Nothing — I was confident everywhere" is itself a red flag and will be probed.
+- I was not sure about implment auth/tenancy layer, because great layer require lot of time, the readme mentioned treat this as production product but even with that premise I never think deploy this with just 6 hours of work. I did the best with time time expected to have a mvp.
 
--
--
--
+- Architecture is poor, plain ts with just couple of functions and raw sql is not the best for a real product, but I think in this case the most important thing is the product working fine and cover some minimum security aspects. 
+
+- Database design is also minimum, but I prefered keep it to deliver something minimum functional, if we want scale this to a merchant first world app, we should redesign to scale.
