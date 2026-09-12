@@ -1782,7 +1782,7 @@ For each session, paste the raw transcript or the prompts you sent, in order. Do
 - **What Claude returned:** A plan with flag on the token script and localstorage on frontend.
 - **What was wrong with it** That's the bug we were fixing, backend trusts a value the client sends. With that rule, one admin token reads any merchant's data just by changing the id in the request. Also localstorage is not secure to save jwt tokens.
 - **How I caught it** I checked the plan against the problem instead of against my own requirements. An if admin branch in the authorization path is usually there to work around something.
-- **What I did instead** Split it into two tokens. The admin token can only mint other tokens, it can't read data. The merchant token reads data and expires fast. Both in httpOnly cookies, and switching merchant mints a new one. An admin token on a data endpoint now gets a 403.
+- **What I did instead** Split it into two tokens. The admin token can only mint other tokens, it can't read data. The merchant token reads data and expires fast. Both in httpOnly cookies, and switching merchant mints a new one. An admin token on a data endpoint now gets a 403. - See commit 763b674e0c939c4b4707930c492272b1a4008a6e
 
 ### Example 2
 
@@ -1790,7 +1790,7 @@ For each session, paste the raw transcript or the prompts you sent, in order. Do
 - **What Claude returned:** A Tier 1 list with the auth and leak items, and the metrics bypass left down in Tier 2.
 - **What was wrong with it** The tenancy filter lives in the DAL, and metrics doesn't go through the DAL. So fixing the two items it did put in Tier 1 still leaves a second way to reach the same order rows. Calling it a "should" meant treating isolation as done when it wasn't.
 - **How I caught it** I looked at where the filter actually gets applied instead of ranking each item by its own severity. Two items that touch the same rows can't sit in different tiers.
-- **What I did instead** Moved it up to Tier 1 next to the other tenancy items, and asked for Tier 1 to be grouped by file so I could see what fits in one commit. The DAL group went first, since everything else queries through it.
+- **What I did instead** Moved it up to Tier 1 next to the other tenancy items, and asked for Tier 1 to be grouped by file so I could see what fits in one commit. The DAL group went first, since everything else queries through it. - See commit 763b674e0c939c4b4707930c492272b1a4008a6e
 
 ### Example 3
 
@@ -1798,4 +1798,4 @@ For each session, paste the raw transcript or the prompts you sent, in order. Do
 - **What Claude returned:** Before that prompt, Claude was not able to find this bug in the auth layer that he built.
 - **What was wrong with it:** auth session request could only report one identity, but after you pick a merchant you have two cookies. It read the merchant one first, said "you're a merchant," and the frontend hid the selector. It also fixed itself after 10 minutes once that token expired, which is worse it looks flaky.
 - **How I caught it:** Clicking around the app and reloading. The tests each set one cookie, so none of them covered the state you're actually in most of the time.
-- **What I did instead:** We added canSwitchMerchants. Wrote the missing test first, confirmed it failed, then fixed it.
+- **What I did instead:** We added canSwitchMerchants. Wrote the missing test first, confirmed it failed, then fixed it. - See commit a79c8a37b49e0a7e0b4cc4fc3c18e69e450ed348
