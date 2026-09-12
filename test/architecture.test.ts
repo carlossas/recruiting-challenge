@@ -51,6 +51,23 @@ test('architecture: only the repository base class imports the database handle',
   );
 });
 
+test('architecture: money math only happens inside the data-access layer', () => {
+  // Refund semantics live in src/dal/money.ts. Aggregating amounts anywhere else is how the
+  // "refunds count as income" bug (TD-05/TD-06) would come back on the next endpoint.
+  const offenders = listFiles('src')
+    .map((path) => relative('src', path).split(sep).join('/'))
+    .map((path) => `src/${path}`)
+    .filter((path) => !path.startsWith('src/dal/'))
+    .filter((path) => /(?:SUM|AVG|TOTAL|COUNT)\s*\([^)]*total_amount/i.test(readFileSync(path, 'utf8')));
+
+  assert.deepEqual(
+    offenders,
+    [],
+    `these modules do money math outside the DAL: ${offenders.join(', ')}. ` +
+      'Use the expressions in src/dal/money.ts through a repository instead.',
+  );
+});
+
 test('architecture: routes do not open their own database connection', () => {
   const offenders = listFiles(join('src', 'routes')).filter((path) =>
     readFileSync(path, 'utf8').includes('better-sqlite3'),

@@ -126,15 +126,17 @@ test('metrics: aggregates are scoped to the session merchant (TD-04)', async () 
   const acme = await call('/api/metrics/summary', { cookie: acmeCookie });
   assert.deepEqual(await acme.json(), {
     merchant_id: 'm_acme',
-    total_orders: 1,
+    sales_orders: 1,
+    refund_orders: 0,
     unique_customers: 1,
     avg_order_value_cents: 1000,
+    avg_net_order_value_cents: 1000,
   });
 
   const bistro = await call('/api/metrics/summary', { cookie: bistroCookie });
-  const bistroBody = (await bistro.json()) as { merchant_id: string; total_orders: number };
+  const bistroBody = (await bistro.json()) as { merchant_id: string; sales_orders: number };
   assert.equal(bistroBody.merchant_id, 'm_bistro');
-  assert.equal(bistroBody.total_orders, 1);
+  assert.equal(bistroBody.sales_orders, 1);
 });
 
 test('merchants: listing requires the admin token', async () => {

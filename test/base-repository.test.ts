@@ -75,7 +75,7 @@ test('base repository: insert forces the merchant column to the caller scope', (
 test('metrics repository: aggregates are scoped too (TD-04)', () => {
   seed();
   const acme = asMerchant('m_acme', () => metricsRepository.summary());
-  assert.equal(acme.total_orders, 1);
+  assert.equal(acme.sales_orders, 1);
   assert.equal(acme.avg_order_value_cents, 1000);
 
   const customers = asMerchant('m_bistro', () => metricsRepository.topCustomers(5));

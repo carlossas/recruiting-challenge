@@ -10,7 +10,8 @@ export const revenueRouter = Router();
 /**
  * `GET /api/revenue?from=YYYY-MM-DD&to=YYYY-MM-DD`
  *
- * Total revenue for the session's merchant in the given date range.
+ * Net revenue for the session's merchant in the given date range: sales minus refunds. The
+ * gross and refunded amounts are returned alongside so the net figure can be explained.
  */
 revenueRouter.get('/', (req, res) => {
   const from = typeof req.query.from === 'string' ? req.query.from : undefined;
@@ -20,12 +21,14 @@ revenueRouter.get('/', (req, res) => {
     return;
   }
 
-  const total = ordersRepository.sumAmount(from, to);
+  const { netCents, grossSalesCents, refundsCents } = ordersRepository.revenue(from, to);
   res.json({
     merchant_id: getAuthContext().merchantId,
     from,
     to,
-    revenue_cents: total,
-    revenue: total / 100,
+    revenue_cents: netCents,
+    revenue: netCents / 100,
+    gross_sales_cents: grossSalesCents,
+    refunds_cents: refundsCents,
   });
 });

@@ -35,6 +35,7 @@ express (src/app.ts)
 | `src/auth/dev-session.ts` | Issues the admin cookie to local requests (dev only). |
 | `src/auth/cookies.ts` | Cookie parsing/serialization (no dependency). |
 | `src/dal/base-repository.ts` | `BaseRepository` / `AdminRepository`. **The only module that touches the database handle.** |
+| `src/dal/money.ts` | The SQL expressions that define revenue. **The only place refund semantics live.** |
 | `src/dal/*-repository.ts` | One repository per entity. |
 | `src/routes/*.ts` | Express routers, one file per resource. |
 | `src/scripts/` | CLI entry points: `seed`, `issue-token`, `setup-env`, `check-deps`. |
@@ -67,7 +68,21 @@ Every order query goes through a repository. `BaseRepository` reads the merchant
 
 Two tables, `merchants` and `orders`; canonical DDL in `src/db.ts`.
 
-`orders.type` is `'sale' | 'refund'`. A refund row records that a sale was reversed; it does not by itself reverse the sale row, and the revenue query currently sums both (TD-05).
+`orders.type` is `'sale' | 'refund'`. A refund row records that a sale was reversed and stores a **positive** `total_amount` like any other row; it does not modify the sale row.
+
+## Money
+
+Because refunds are stored positive, summing `total_amount` counts a refund as income — the amount is added instead of subtracted, so the error is about twice the refunded volume. All money figures are therefore derived from the named expressions in `src/dal/money.ts`:
+
+| Expression | Meaning |
+|---|---|
+| `NET_AMOUNT` | Sales add, refunds subtract → net revenue |
+| `SALES_ONLY` / `REFUNDS_ONLY` | The two halves, so a net figure can be explained |
+| `SALE_COUNT` / `REFUND_COUNT` | Orders placed vs refunds issued, never mixed |
+
+Net revenue can be negative for a period dominated by refunds; nothing clamps it. `test/architecture.test.ts` fails the build if `total_amount` is aggregated outside `src/dal/`, so a new endpoint can't quietly reintroduce the bug.
+
+Two limits worth knowing: refunds cannot be matched to the sale they reverse (no link column — TD-18), so netting is exact in total but can't answer "was *this* sale refunded"; and `status` is not filtered, because every row is `completed` today. If other statuses appear, money math must exclude the non-completed ones.
 
 ## Configuration
 
@@ -84,4 +99,4 @@ Two tables, `merchants` and `orders`; canonical DDL in `src/db.ts`.
 
 ## Known gaps
 
-Tracked in `tech_debt.md` (active) and `tech_debt_backlog.md` (deferred). The ones visible from this document: unvalidated `limit` and request bodies (TD-10, TD-11), stored XSS in the dashboard table (TD-12), and refunds counted as income (TD-05, TD-06).
+Tracked in `tech_debt.md` (active) and `tech_debt_backlog.md` (deferred). The ones visible from this document: unvalidated `limit` and request bodies (TD-10, TD-11), stored XSS in the dashboard table (TD-12), no refund→sale link (TD-18), and the exclusive `to` bound in date ranges (TD-07).

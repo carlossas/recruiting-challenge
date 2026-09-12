@@ -1,10 +1,12 @@
 const merchantPicker = document.getElementById('merchant-picker');
 const merchantSelect = document.getElementById('merchant-select');
 const sessionLabel = document.getElementById('session-label');
-const totalOrdersEl = document.getElementById('total-orders');
-const uniqueCustomersEl = document.getElementById('unique-customers');
+const salesOrdersEl = document.getElementById('sales-orders');
+const refundOrdersEl = document.getElementById('refund-orders');
 const avgOrderEl = document.getElementById('avg-order');
+const avgNetOrderEl = document.getElementById('avg-net-order');
 const revenue30dEl = document.getElementById('revenue-30d');
+const revenueBreakdownEl = document.getElementById('revenue-breakdown');
 const ordersTbody = document.getElementById('orders-tbody');
 
 // The session lives in HttpOnly cookies, so this page never holds a token.
@@ -47,14 +49,16 @@ function setStatus(text) {
 
 async function refresh() {
   const summary = await api('/api/metrics/summary');
-  totalOrdersEl.textContent = summary.total_orders ?? '—';
-  uniqueCustomersEl.textContent = summary.unique_customers ?? '—';
+  salesOrdersEl.textContent = summary.sales_orders ?? '—';
+  refundOrdersEl.textContent = summary.refund_orders ?? '—';
   avgOrderEl.textContent = money(summary.avg_order_value_cents ?? 0);
+  avgNetOrderEl.textContent = `${money(summary.avg_net_order_value_cents ?? 0)} net of refunds`;
 
   const now = new Date();
   const thirtyAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const revenue = await api(`/api/revenue?from=${isoDate(thirtyAgo)}&to=${isoDate(now)}`);
   revenue30dEl.textContent = money(revenue.revenue_cents ?? 0);
+  revenueBreakdownEl.textContent = `${money(revenue.gross_sales_cents ?? 0)} sales − ${money(revenue.refunds_cents ?? 0)} refunded`;
 
   const ordersRes = await api('/api/orders?limit=10');
   ordersTbody.innerHTML = '';

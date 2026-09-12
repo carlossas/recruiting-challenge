@@ -100,23 +100,38 @@ Both parameters are required.
 
 ```json
 { "merchant_id": "m_acme", "from": "2026-08-01", "to": "2026-09-12",
-  "revenue_cents": 238200, "revenue": 2382 }
-```
-
-> Refunds are currently summed as income, and `to` is exclusive so "today" is excluded — see TD-05 and TD-07 in `tech_debt.md`.
-
-### `GET /api/metrics/summary`
-
-```json
-{ "merchant_id": "m_acme", "total_orders": 40,
-  "unique_customers": 3, "avg_order_value_cents": 10609 }
+  "revenue_cents": 327108, "revenue": 3271.08,
+  "gross_sales_cents": 375736, "refunds_cents": 48628 }
 ```
 
 | Field | Meaning |
 |---|---|
-| `total_orders` | Rows in `orders` for the merchant (refunds included — TD-06) |
-| `unique_customers` | Distinct `customer_email` values |
-| `avg_order_value_cents` | Rounded average of `total_amount` |
+| `revenue_cents` | **Net**: gross sales minus refunds. Can be negative when refunds exceed sales in the period — that is a real state, not an error |
+| `revenue` | The same figure in currency units |
+| `gross_sales_cents` | Sales only |
+| `refunds_cents` | Refunds only, as a positive number |
+
+`gross_sales_cents - refunds_cents === revenue_cents` always holds, so a drop in revenue can be attributed to falling sales or rising refunds without another call.
+
+> `to` is exclusive, so orders placed on the `to` date are not counted — see TD-07 in `tech_debt_backlog.md`.
+
+### `GET /api/metrics/summary`
+
+```json
+{ "merchant_id": "m_acme", "sales_orders": 34, "refund_orders": 6,
+  "unique_customers": 3,
+  "avg_order_value_cents": 11051, "avg_net_order_value_cents": 9621 }
+```
+
+| Field | Meaning |
+|---|---|
+| `sales_orders` | Orders placed (rows of type `sale`) |
+| `refund_orders` | Refund rows — reported separately, never folded into the order count |
+| `unique_customers` | Distinct customers with **at least one sale** |
+| `avg_order_value_cents` | Average amount of a sale: what a typical order looks like |
+| `avg_net_order_value_cents` | Net revenue ÷ number of sales: what a sale is worth after refunds |
+
+There is no `total_orders` field: counting a refund as an order is what made the old number misleading. Add `sales_orders` and `refund_orders` if you need the raw row count.
 
 ### `GET /api/metrics/top-customers`
 Query: `limit` (default 5).
@@ -124,3 +139,5 @@ Query: `limit` (default 5).
 ```json
 { "customers": [{ "customer_email": "ana@example.com", "order_count": 14, "total_spent": 181968 }] }
 ```
+
+`total_spent` is **net** (sales minus refunds) and `order_count` counts sales only, so a customer who refunded more than they bought shows a negative total and ranks last.

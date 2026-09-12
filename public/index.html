@@ -13,6 +13,7 @@
       .card { border: 1px solid #ccc4; border-radius: 8px; padding: 1rem; }
       .card .label { font-size: 0.85rem; opacity: 0.7; }
       .card .value { font-size: 1.6rem; font-weight: 600; margin-top: 0.25rem; }
+      .card .sub { font-size: 0.8rem; opacity: 0.7; margin-top: 0.25rem; }
       table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
       th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #ccc4; }
       th { font-weight: 600; opacity: 0.8; }
@@ -33,10 +34,18 @@
     <section>
       <h2>Summary</h2>
       <div class="cards" id="summary-cards">
-        <div class="card"><div class="label">Total orders</div><div class="value" id="total-orders">—</div></div>
-        <div class="card"><div class="label">Unique customers</div><div class="value" id="unique-customers">—</div></div>
-        <div class="card"><div class="label">Avg order value</div><div class="value" id="avg-order">—</div></div>
-        <div class="card"><div class="label">Revenue (last 30 days)</div><div class="value" id="revenue-30d">—</div></div>
+        <div class="card"><div class="label">Sales orders</div><div class="value" id="sales-orders">—</div></div>
+        <div class="card"><div class="label">Refunds</div><div class="value" id="refund-orders">—</div></div>
+        <div class="card">
+          <div class="label">Avg order value</div>
+          <div class="value" id="avg-order">—</div>
+          <div class="sub" id="avg-net-order"></div>
+        </div>
+        <div class="card">
+          <div class="label">Revenue (last 30 days, net of refunds)</div>
+          <div class="value" id="revenue-30d">—</div>
+          <div class="sub" id="revenue-breakdown"></div>
+        </div>
       </div>
     </section>
 

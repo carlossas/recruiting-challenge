@@ -22,9 +22,9 @@ Items are grouped by the domain and files they touch, so each group can land as 
 | **B — Authentication layer** | TD-01 | `auth/`, `server.ts`, `public/app.js` | ✅ Done — [plan 005](plans/005-jwt-auth-and-scoped-repositories.md) |
 | **C — Input validation at the API edge** | TD-10, TD-11 | `routes/orders.ts`, `routes/metrics.ts` | ⬜ Open |
 | **D — Output escaping in the dashboard** | TD-12 | `public/app.js` | ⬜ Open |
-| **E — Refund semantics in money math** | TD-05 | `dal/orders-repository.ts`, `routes/revenue.ts` | ⬜ Open |
+| **E — Refund semantics in money math** | TD-05 | `dal/`, `routes/revenue.ts`, `routes/metrics.ts` | ✅ Done — [plan 006](plans/006-refund-semantics-in-money-math.md) |
 
-Suggested order for what's left: **C → E → D**. C stops new payloads from being stored, E fixes the money number, D makes rendering safe regardless of what's already in the database.
+Suggested order for what's left: **C → D**. C stops new payloads from being stored; D makes rendering safe regardless of what's already in the database.
 
 ---
 
@@ -54,19 +54,15 @@ Both are "the API trusts whatever the client sends". Same layer, same kind of fi
   - Where: [public/app.js:63](public/app.js:63)
   - What happens: each row is built with `innerHTML`, interpolating `o.customer_email` and `o.type` unsanitized. (The file was rewritten for the session flow in plan 005; this line was left as-is on purpose so the fix is its own reviewable change.)
 
-## Group E — Refund semantics in money math
-
-*Files: [src/dal/orders-repository.ts](src/dal/orders-repository.ts), [src/routes/revenue.ts](src/routes/revenue.ts)*
-
-- [ ] **TD-05 · Revenue counts refunds as income** — Severity: High
-  - **Why here:** the headline number of the product is wrong, and wrong in the optimistic direction. A merchant reading "Revenue (last 30 days)" is told they earned money they refunded.
-  - **Related, deferred:** TD-06 (summary metrics treat refunds as sales) is the same class of bug on informational numbers and sits in the backlog. Now that metrics go through `MetricsRepository`, fixing TD-06 in the same commit is nearly free.
-  - Where: [src/dal/orders-repository.ts:98](src/dal/orders-repository.ts:98)
-  - What happens: `sumAmount` runs `SUM(total_amount)` without looking at `type`. Refunds are stored with a positive amount (see [src/scripts/seed.ts:43](src/scripts/seed.ts:43)), so they add instead of subtracting. Per [docs/architecture.md](docs/architecture.md), a refund represents a reversed sale.
-
 ---
 
 # Resolved
+
+- [x] **TD-05 · Revenue counts refunds as income** — Severity: High
+  - Resolved by [plan 006](plans/006-refund-semantics-in-money-math.md): refund semantics now live in `src/dal/money.ts`, and `/api/revenue` returns net revenue plus the gross and refunded amounts it is made of. Measured effect on the seeded data: `m_acme` went from 424 364 to 327 108 (−29.7 %) and `m_bistro` from 417 659 to 350 321 (−19.2 %) — a refund used to *add* its amount, so the error was about twice the refunded volume.
+  - Gate: `test/architecture.test.ts` fails if `total_amount` is aggregated outside `src/dal/` (verified by temporarily adding such a line). Behavior pinned by `test/money.test.ts`, including negative net and the sale-plus-refund cancellation.
+  - Also closed with it: **TD-06** (summary metrics treating refunds as sales), now `sales_orders` / `refund_orders` with both average figures.
+  - Carried forward: **TD-18** — a refund still can't be matched to the sale it reverses.
 
 - [x] **TD-01 · The `X-Merchant-Id` header is not verified** — Severity: High
   - Resolved by [plan 005](plans/005-jwt-auth-and-scoped-repositories.md): sessions are HS256 JWTs in HttpOnly cookies. Data access requires a merchant-scoped token whose `merchantId` claim the backend signs; a client-sent `X-Merchant-Id` is only compared, never used, and a mismatch is `403 merchant_mismatch`. Merchant switching goes through `POST /api/auth/token`, guarded by an admin token that cannot read data.

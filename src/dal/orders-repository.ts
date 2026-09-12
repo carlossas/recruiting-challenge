@@ -2,8 +2,10 @@
  * Orders repository. Every query is scoped to the caller's merchant by {@link BaseRepository}.
  *
  * @see plans/005-jwt-auth-and-scoped-repositories.md
+ * @see plans/006-refund-semantics-in-money-math.md
  */
 import { BaseRepository } from './base-repository.js';
+import { NET_AMOUNT, REFUNDS_ONLY, SALES_ONLY } from './money.js';
 
 /** A row of the `orders` table. */
 export interface OrderRow {
@@ -30,6 +32,16 @@ export interface ListOrdersOptions {
   from?: string;
   to?: string;
   limit?: number;
+}
+
+/** Revenue over a period, split so the net figure can be audited. */
+export interface RevenueBreakdown {
+  /** Gross sales minus refunds. Negative when refunds exceed sales. */
+  netCents: number;
+  /** Sales only. */
+  grossSalesCents: number;
+  /** Refunds only, as a positive number. */
+  refundsCents: number;
 }
 
 /**
@@ -86,20 +98,26 @@ export class OrdersRepository extends BaseRepository<OrderRow> {
   }
 
   /**
-   * Sums order amounts over a date range.
+   * Revenue over a date range: net, plus the gross and refunded amounts it is made of.
    *
-   * Note: refunds are stored as positive amounts and are summed like sales — see TD-05 in
-   * `tech_debt.md`. Behavior is unchanged here on purpose; the fix is its own change.
+   * Refunds subtract, so a period with more refunds than sales reports a negative net — that
+   * is a real state of the business and is not clamped to zero.
    *
    * @param from - Inclusive lower bound (`YYYY-MM-DD`).
    * @param to - Exclusive upper bound (`YYYY-MM-DD`).
    */
-  sumAmount(from: string, to: string): number {
-    const row = this.selectFirst<{ total: number }>('COALESCE(SUM(total_amount), 0) AS total', {
-      where: 'created_at >= ? AND created_at < ?',
-      params: [from, to],
-    });
-    return row?.total ?? 0;
+  revenue(from: string, to: string): RevenueBreakdown {
+    const row = this.selectFirst<{ net: number; gross: number; refunds: number }>(
+      `COALESCE(SUM(${NET_AMOUNT}), 0) AS net,
+       COALESCE(SUM(${SALES_ONLY}), 0) AS gross,
+       COALESCE(SUM(${REFUNDS_ONLY}), 0) AS refunds`,
+      { where: 'created_at >= ? AND created_at < ?', params: [from, to] },
+    );
+    return {
+      netCents: row?.net ?? 0,
+      grossSalesCents: row?.gross ?? 0,
+      refundsCents: row?.refunds ?? 0,
+    };
   }
 }
 

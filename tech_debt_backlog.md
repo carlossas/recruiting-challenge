@@ -13,15 +13,18 @@ IDs are stable (`TD-01` … `TD-17`) and match the numbering in [tech_debt.md](t
 
 # Tier 2 — SHOULD (next)
 
+- [ ] **TD-18 · A refund can't be matched to the sale it reverses** — Severity: Medium
+  - **Why here:** found while designing [plan 006](plans/006-refund-semantics-in-money-math.md). Netting revenue by amount makes the totals right, but nothing ties a refund row to its original sale, so the data can't answer "was this sale refunded?", a refund can exceed the sale it reverses, and a refund recorded in a later period makes that period negative while the earlier one stays overstated. Partial refunds are indistinguishable from unrelated ones.
+  - Where: [src/db.ts:23](src/db.ts:23) (the `orders` table has no parent/order reference)
+  - What happens: `orders` holds `id, merchant_id, customer_email, total_amount, type, status, created_at` — and no link column. Shape to decide: a nullable `refunded_order_id` referencing `orders(id)`, plus a rule for how much of a sale may be refunded.
+
 - [ ] **TD-16 · Test coverage is minimal** — Severity: Medium
   - **Why here:** the gate that keeps Tier 1 fixed. Right now nothing would catch a regression in auth, tenancy scoping, or revenue math.
   - Where: [test/orders.test.ts](test/orders.test.ts)
   - What happens: only the DAL's `create`, `listByMerchant`, and `getById` are covered. No route, auth, revenue, or metrics tests.
 
-- [ ] **TD-06 · Summary metrics treat refunds as sales** — Severity: Medium
-  - **Why here:** same class of error as TD-05 and visible on the same screen, but these numbers are informational rather than the money figure. Cheap to fold into the TD-05 commit if the metrics queries already moved into the DAL (TD-04).
-  - Where: [src/routes/metrics.ts:17](src/routes/metrics.ts:17), [src/routes/metrics.ts:45](src/routes/metrics.ts:45)
-  - What happens: `total_orders`, `unique_customers`, `avg_order_value_cents`, and `top-customers.total_spent` count every row the same way.
+- [x] **TD-06 · Summary metrics treat refunds as sales** — Severity: Medium — **resolved**
+  - Resolved by [plan 006](plans/006-refund-semantics-in-money-math.md), folded into the TD-05 change as expected: `MetricsRepository` now reports `sales_orders` and `refund_orders` separately, counts only customers with a sale, exposes both `avg_order_value_cents` (per sale) and `avg_net_order_value_cents` (net per sale), and ranks `top-customers` by net spend. Covered by `test/money.test.ts`.
 
 - [ ] **TD-07 · The revenue range excludes the `to` day, so the dashboard leaves out today** — Severity: Medium
   - **Why here:** a visibly wrong number every day, with an obvious fix, but it under-reports rather than overstating.
