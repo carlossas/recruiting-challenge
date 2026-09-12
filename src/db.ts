@@ -1,8 +1,9 @@
 import Database from 'better-sqlite3';
 import { mkdirSync, existsSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { getConfig } from './config/env.js';
 
-const DB_PATH = process.env.DB_PATH ?? 'data/dashboard.db';
+const DB_PATH = getConfig().dbPath;
 
 if (!existsSync(dirname(DB_PATH))) {
   mkdirSync(dirname(DB_PATH), { recursive: true });

@@ -13,37 +13,50 @@
       .card { border: 1px solid #ccc4; border-radius: 8px; padding: 1rem; }
       .card .label { font-size: 0.85rem; opacity: 0.7; }
       .card .value { font-size: 1.6rem; font-weight: 600; margin-top: 0.25rem; }
+      .card .sub { font-size: 0.8rem; opacity: 0.7; margin-top: 0.25rem; }
       table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
       th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #ccc4; }
       th { font-weight: 600; opacity: 0.8; }
       .muted { opacity: 0.6; }
+      .section-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+      button { font: inherit; padding: 0.4rem 0.8rem; border: 1px solid #8886; border-radius: 6px; background: transparent; cursor: pointer; }
+      button:disabled { opacity: 0.5; cursor: default; }
     </style>
   </head>
   <body>
     <h1>Merchant Dashboard</h1>
     <p class="muted">Tiny demo dashboard backed by the local API.</p>
 
-    <div class="merchant-picker">
+    <div class="merchant-picker" id="merchant-picker" hidden>
       <label>Logged in as:
-        <select id="merchant-select">
-          <option value="m_acme">Acme Supplies</option>
-          <option value="m_bistro">Bistro Verde</option>
-        </select>
+        <select id="merchant-select"></select>
       </label>
     </div>
+    <p class="muted" id="session-label">Loading session…</p>
 
     <section>
       <h2>Summary</h2>
       <div class="cards" id="summary-cards">
-        <div class="card"><div class="label">Total orders</div><div class="value" id="total-orders">—</div></div>
-        <div class="card"><div class="label">Unique customers</div><div class="value" id="unique-customers">—</div></div>
-        <div class="card"><div class="label">Avg order value</div><div class="value" id="avg-order">—</div></div>
-        <div class="card"><div class="label">Revenue (last 30 days)</div><div class="value" id="revenue-30d">—</div></div>
+        <div class="card"><div class="label">Sales orders</div><div class="value" id="sales-orders">—</div></div>
+        <div class="card"><div class="label">Refunds</div><div class="value" id="refund-orders">—</div></div>
+        <div class="card">
+          <div class="label">Avg order value</div>
+          <div class="value" id="avg-order">—</div>
+          <div class="sub" id="avg-net-order"></div>
+        </div>
+        <div class="card">
+          <div class="label">Revenue (last 30 days, net of refunds)</div>
+          <div class="value" id="revenue-30d">—</div>
+          <div class="sub" id="revenue-breakdown"></div>
+        </div>
       </div>
     </section>
 
     <section>
-      <h2>Recent orders</h2>
+      <div class="section-head">
+        <h2>Recent orders</h2>
+        <button type="button" id="download-csv">Download CSV (last 30 days)</button>
+      </div>
       <table>
         <thead>
           <tr><th>Date</th><th>Customer</th><th>Type</th><th>Amount</th></tr>

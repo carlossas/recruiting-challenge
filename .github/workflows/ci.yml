@@ -1,0 +1,46 @@
+# CI checks for pull requests. See plans/003-check-deps-script.md.
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-deps:
+    name: check-deps
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      # No third-party install scripts in a security check; the audit doesn't need native builds.
+      - run: npm ci --ignore-scripts
+      - run: npm run check:deps
+
+  # Only `develop` from this repo may be merged into `main`. See plans/004-branching-model-and-protection.md.
+  release-source:
+    name: release-source
+    if: github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Only develop from this repo can be merged into main
+        # Values go through env, never interpolated into the script, to avoid injection via branch names.
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.repository }}
+        run: |
+          if [ "$HEAD_REF" != "develop" ] || [ "$HEAD_REPO" != "$BASE_REPO" ]; then
+            echo "::error::PRs into main must come from 'develop' in $BASE_REPO (got '$HEAD_REPO:$HEAD_REF')"
+            exit 1
+          fi
