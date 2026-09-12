@@ -79,6 +79,22 @@ export abstract class BaseRepository<TRow> {
   }
 
   /**
+   * Runs a scoped `SELECT` lazily, yielding rows one at a time.
+   *
+   * Used by exports: the full result never exists in memory at once. The merchant filter is
+   * applied exactly as in {@link select}.
+   *
+   * @param columns - Column list or expressions.
+   * @param options - Extra condition, trailing clauses and their parameters.
+   */
+  protected iterate<T>(columns: string, options: QueryOptions = {}): IterableIterator<T> {
+    const where = options.where ? ` AND ${options.where}` : '';
+    const tail = options.tail ? ` ${options.tail}` : '';
+    const sql = `SELECT ${columns} FROM ${this.table} WHERE ${this.merchantColumn} = ?${where}${tail}`;
+    return db.prepare(sql).iterate(this.scope(), ...(options.params ?? [])) as IterableIterator<T>;
+  }
+
+  /**
    * Inserts a row, forcing the merchant column to the caller's scope.
    *
    * @param values - Column values, excluding the merchant column.

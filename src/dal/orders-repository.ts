@@ -34,6 +34,19 @@ export interface ListOrdersOptions {
   limit?: number;
 }
 
+/** One row of the CSV export. */
+export interface OrderExportRow {
+  order_id: string;
+  created_at: string;
+  customer_email: string;
+  type: 'sale' | 'refund';
+  status: string;
+  /** Amount as stored: always positive. */
+  amount_cents: number;
+  /** Negative for refunds, so the column sums to net revenue. */
+  signed_amount_cents: number;
+}
+
 /** Revenue over a period, split so the net figure can be audited. */
 export interface RevenueBreakdown {
   /** Gross sales minus refunds. Negative when refunds exceed sales. */
@@ -95,6 +108,27 @@ export class OrdersRepository extends BaseRepository<OrderRow> {
       status: order.status,
     });
     return this.getById(order.id)!;
+  }
+
+  /**
+   * Yields the caller's orders for export, oldest first (a ledger reads chronologically).
+   *
+   * Rows are produced lazily, so exporting a large history does not materialize it in memory.
+   *
+   * @param options - Optional date range; both bounds or neither.
+   */
+  iterateForExport(options: { from?: string; to?: string } = {}): IterableIterator<OrderExportRow> {
+    const columns = `id AS order_id, created_at, customer_email, type, status,
+       total_amount AS amount_cents, ${NET_AMOUNT} AS signed_amount_cents`;
+
+    if (options.from && options.to) {
+      return this.iterate<OrderExportRow>(columns, {
+        where: 'created_at >= ? AND created_at < ?',
+        tail: 'ORDER BY created_at ASC',
+        params: [options.from, options.to],
+      });
+    }
+    return this.iterate<OrderExportRow>(columns, { tail: 'ORDER BY created_at ASC' });
   }
 
   /**

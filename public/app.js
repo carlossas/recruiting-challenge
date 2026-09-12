@@ -8,6 +8,7 @@ const avgNetOrderEl = document.getElementById('avg-net-order');
 const revenue30dEl = document.getElementById('revenue-30d');
 const revenueBreakdownEl = document.getElementById('revenue-breakdown');
 const ordersTbody = document.getElementById('orders-tbody');
+const downloadCsvButton = document.getElementById('download-csv');
 
 // The session lives in HttpOnly cookies, so this page never holds a token.
 // Merchant tokens are short-lived: on a 401 we ask for a new one and retry once.
@@ -43,6 +44,16 @@ function isoDate(d) {
   return d.toISOString().slice(0, 10);
 }
 
+// One definition of "the window on screen", shared by the cards and the CSV export so the two
+// can never disagree. `to` is exclusive, hence tomorrow: with today's date it would drop today.
+function currentRange() {
+  const now = new Date();
+  return {
+    from: isoDate(new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)),
+    to: isoDate(new Date(now.getTime() + 24 * 60 * 60 * 1000)),
+  };
+}
+
 function setStatus(text) {
   sessionLabel.textContent = text;
 }
@@ -54,9 +65,8 @@ async function refresh() {
   avgOrderEl.textContent = money(summary.avg_order_value_cents ?? 0);
   avgNetOrderEl.textContent = `${money(summary.avg_net_order_value_cents ?? 0)} net of refunds`;
 
-  const now = new Date();
-  const thirtyAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const revenue = await api(`/api/revenue?from=${isoDate(thirtyAgo)}&to=${isoDate(now)}`);
+  const { from, to } = currentRange();
+  const revenue = await api(`/api/revenue?from=${from}&to=${to}`);
   revenue30dEl.textContent = money(revenue.revenue_cents ?? 0);
   revenueBreakdownEl.textContent = `${money(revenue.gross_sales_cents ?? 0)} sales − ${money(revenue.refunds_cents ?? 0)} refunded`;
 
@@ -124,6 +134,47 @@ async function start() {
   }
   await selectMerchant(merchantSelect.value);
 }
+
+async function downloadCsv() {
+  if (!selectedMerchantId) return;
+  const { from, to } = currentRange();
+  const path = `/api/orders/export.csv?from=${from}&to=${to}`;
+
+  // A plain <a download> would save the JSON error body when the short-lived merchant token has
+  // expired, so fetch first and re-mint on 401 exactly like the data calls do.
+  let response = await request(path);
+  if (response.status === 401 && (await mintMerchantToken(selectedMerchantId))) {
+    response = await request(path);
+  }
+  if (!response.ok) {
+    setStatus(`Export failed (${response.status})`);
+    return;
+  }
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filenameFrom(response) ?? `orders-${selectedMerchantId}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function filenameFrom(response) {
+  const match = /filename="([^"]+)"/.exec(response.headers.get('Content-Disposition') ?? '');
+  return match ? match[1] : null;
+}
+
+downloadCsvButton.addEventListener('click', () => {
+  downloadCsvButton.disabled = true;
+  downloadCsv()
+    .catch((error) => setStatus(String(error)))
+    .finally(() => {
+      downloadCsvButton.disabled = false;
+    });
+});
 
 merchantSelect.addEventListener('change', () => {
   selectMerchant(merchantSelect.value).catch((error) => setStatus(String(error)));
